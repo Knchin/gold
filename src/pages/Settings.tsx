@@ -136,9 +136,9 @@ export function SettingsPage() {
       <div className="card">
         <h3 className="text-sm font-semibold text-slate-300 mb-3">About</h3>
         <div className="space-y-2 text-xs text-slate-500">
-          <p>GoldPrice PWA v1.0.0</p>
+          <p>Gram Karat v1.0.0</p>
           <p>Data source: {sourceName}</p>
-          <p>Architecture: React + Cloudflare Pages</p>
+          <p>© 2026</p>
         </div>
       </div>
 

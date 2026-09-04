@@ -19,47 +19,52 @@ Cloudflare Pages
 
 ## Market Data Provider
 
-### Provider: goldprice.dev
+### Provider: commoditypriceapi.com (default)
 
-**Why goldprice.dev?**
+Live gold prices come from the [Commodity Price API](https://commoditypriceapi.com) — a
+documented REST API (API key via `apiKey` query param, response includes bid/ask, per-gram and
+karat fields, and OHLC historical data). The API sends `Access-Control-Allow-Origin: *`, so it
+is fully consumable from the browser on Cloudflare Pages with no backend.
 
-| Feature | goldprice.dev | GoldAPI.io | MintedMetal | NetDania |
-|---------|--------------|------------|-------------|----------|
-| Free tier | 1000 calls/mo, 30 req/min | 100 calls/mo | Unlimited (2x/day) | Enterprise only |
-| API key | Optional (anonymous OK) | Required | None | Contract |
-| CORS | Yes | Yes | Yes | N/A |
-| Browser access | Direct | Direct | Direct | B2B only |
-| XAU/USD | Yes | Yes | LBMA fix only | Enterprise |
-| FX rates | Yes (31 currencies) | Yes (72 currencies) | No | Enterprise |
-| Historical | 30 days free | Limited | No | Enterprise |
-| Pricing | Free / $10-80/mo | Free / $99/mo | Free (CC BY 4.0) | Enterprise |
-| License | Internal free, Pro commercial | Sandbox free | CC BY 4.0 | Enterprise |
+- **Gold symbol**: `XAU` (USD per troy ounce, 1-second update interval)
+- **Historical**: `/v2/rates/time-series` returns daily OHLC (up to 1 year range) → chart
+- **Quote currency**: output is USD (the default / native quote). The `quote` parameter (EUR,
+  GBP, CHF output) is a Premium/Plus feature and is silently ignored on the free Lite plan.
 
-**Trade-offs:**
-- goldprice.dev free tier refreshes ~once per minute (not tick-by-tick)
-- GoldAPI.io free tier has very low limits (100/month)
-- MintedMetal only updates twice daily (LBMA fix)
-- NetDania is enterprise B2B only, no public API
+**FX rates** (EUR/USD, GBP/USD, USD/CHF) are not commodity symbols, so they are provided by the
+free [exchangerate-api](https://www.exchangerate-api.com) endpoint `https://open.er-api.com/v6/latest/USD`
+(no key, CORS-enabled), cached for 6 hours.
 
-**goldprice.dev is the best choice** because it works entirely from the browser, has generous free limits, CORS support, no required API key, multi-currency support, and historical data.
+**Signup & key**: create a free trial key at https://commoditypriceapi.com (no credit card,
+2,000 requests on the Lite plan). Set it as the `VITE_GOLD_API_KEY` GitHub secret. The key is
+embedded in the frontend bundle (visible to visitors), which commoditypriceapi explicitly
+allows for its free trial.
 
-### NetDania Investigation
+**Data status notes:**
+- The free **Lite** plan may deliver rates delayed by up to 10 minutes; the app shows the
+  provider timestamp through the status badge (● LIVE / ● DELAYED / ● STALE) so the delay, if
+  any, is always visible.
+- Subscription plans (`quote` currency, real-time) upgrade the same code path automatically.
 
-NetDania operates a B2B financial data service. Their "Client API" is a streaming SDK designed for institutional clients under contract. There is no free public REST API for XAU/USD that can be consumed from a browser. NetDania requires enterprise licensing and is not suitable for a Cloudflare Pages-only architecture.
+| Feature | commoditypriceapi | goldprice.dev | Mock |
+|---------|-------------------|---------------|------|
+| Live spot XAU/USD | Yes (1s interval) | ~once/min | Simulated |
+| API key | Required (free trial) | Optional | None |
+| CORS / browser access | Yes (`*`) | CORS-blocked | N/A |
+| Historical data | Yes (time-series) | Yes (30 days) | Simulated |
+| FX rates | Via exchangerate-api (free) | Via goldprice.dev | Simulated |
+| Documentation/licensing | Documented / plan terms | Documented / free | N/A |
 
-### CORS & Browser Access
+### Provider Selection
 
-goldprice.dev supports direct browser requests:
-- No CORS restrictions for the free tier
-- API key is optional (anonymous requests work)
-- If using an API key, it's intentionally public (frontend-safe)
-- Rate limits: 30 req/min anonymous, 30 req/min with free key
+The data source is selected at build time via the `VITE_MARKET_PROVIDER` environment variable:
 
-### Rate Limits
+```env
+# commodityprice (default) | goldprice | mock
+VITE_MARKET_PROVIDER=commodityprice
+```
 
-- Anonymous: ~30 requests/minute, shared IP limits
-- Free key: 30 requests/minute, 1,000/month
-- The app defaults to 60-second polling (configurable)
+`VITE_DEMO_MODE=true` always overrides to mock data.
 
 ## Getting Started
 
@@ -106,9 +111,23 @@ VITE_UPDATE_INTERVAL_MS=60000
 
 # Force demo mode
 VITE_DEMO_MODE=false
+
+# Market provider: commodityprice (default) | goldprice | mock
+VITE_MARKET_PROVIDER=commodityprice
 ```
 
 All environment variables are frontend-safe and prefixed with `VITE_`.
+
+### Setting up the commoditypriceapi key
+
+1. Sign up at https://commoditypriceapi.com (free 7-day trial, 2,000 requests, no card)
+2. Copy your API key from the dashboard
+3. Add it as a GitHub Actions **secret** named `GOLD_API_KEY`
+4. Push to main — the deploy workflow rebuilds with the key baked into the bundle
+
+The key is public in the client bundle; commoditypriceapi's free-tier terms permit this for
+trial/integration use. Use the dashboard usage page to monitor the 2,000-request budget (the app
+uses ~1 gold call per refresh interval plus 3 parallel FX calls per 6-hour window).
 
 ## Gold Calculations
 

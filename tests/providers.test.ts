@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MockGoldMarketProvider } from '../src/providers/mock';
+import { CommodityPriceApiProvider } from '../src/providers/commoditypriceapi';
 
 describe('MockGoldMarketProvider', () => {
   let provider: MockGoldMarketProvider;
@@ -85,5 +86,133 @@ describe('API Provider Error Handling', () => {
     expect(res.status).toBe(429);
 
     vi.unstubAllGlobals();
+  });
+});
+
+describe('CommodityPriceApiProvider', () => {
+  let provider: CommodityPriceApiProvider;
+
+  beforeEach(() => {
+    provider = new CommodityPriceApiProvider('test-key');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should return valid gold quote', async () => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          success: true,
+          timestamp,
+          rates: { XAU: { rate: 4430.58, bid: 4430.08, ask: 4430.58 } },
+          metadata: { XAU: { unit: 'T.oz', quote: 'USD' } },
+        }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const quote = await provider.getGoldQuote();
+    expect(quote.pricePerOunce).toBe(4430.58);
+    expect(quote.bid).toBe(4430.08);
+    expect(quote.ask).toBe(4430.58);
+    expect(quote.currency).toBe('USD');
+    expect(quote.source).toBe('commoditypriceapi');
+    expect(quote.timestamp).toBe(new Date(timestamp * 1000).toISOString());
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('api.commoditypriceapi.com/v2/rates/latest')
+    );
+    expect(mockFetch.mock.calls[0][0]).toContain('apiKey=test-key');
+  });
+
+  it('should throw if no gold rate returned', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true, rates: {} }),
+      })
+    );
+
+    await expect(provider.getGoldQuote()).rejects.toThrow('No gold rate returned');
+  });
+
+  it('should throw on API error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 402,
+        statusText: 'PAYMENT_REQUIRED',
+        json: () => Promise.resolve({ message: 'Please extend your trial' }),
+      })
+    );
+
+    await expect(provider.getGoldQuote()).rejects.toThrow('402 Please extend your trial');
+  });
+
+  it('should return valid FX rates and cache them', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ result: 'success', rates: { EUR: 1.16, GBP: 1.35, CHF: 0.81 } }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const fx1 = await provider.getFxRates();
+    expect(fx1.EURUSD).toBe(1.16);
+    expect(fx1.GBPUSD).toBe(1.35);
+    expect(fx1.USDCHF).toBe(0.81);
+
+    const fx2 = await provider.getFxRates();
+    expect(fx2).toEqual(fx1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should map historical bars', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            startDate: '2026-08-01',
+            endDate: '2026-08-03',
+            rates: {
+              '2026-08-01': { open: 4400, high: 4420, low: 4390, close: 4410 },
+              '2026-08-02': { open: 4410, high: 4430, low: 4405, close: 4425 },
+            },
+          }),
+      })
+    );
+
+    const bars = await provider.getHistoricalGoldData('2026-08-01', '2026-08-03');
+    expect(bars).toHaveLength(2);
+    expect(bars[0]).toEqual({
+      date: '2026-08-01',
+      open: 4400,
+      high: 4420,
+      low: 4390,
+      close: 4410,
+      volume: null,
+    });
+  });
+
+  it('should throw on history error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'BAD_REQUEST',
+        json: () => Promise.resolve({ message: 'Date range exceeds the allowed limit' }),
+      })
+    );
+
+    await expect(provider.getHistoricalGoldData('2026-01-01', '2027-01-01')).rejects.toThrow(
+      '400 Date range exceeds the allowed limit'
+    );
   });
 });

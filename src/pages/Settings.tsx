@@ -2,9 +2,17 @@ import { usePreferences } from '../hooks/usePreferences';
 import { SUPPORTED_CURRENCIES, KARAT_OPTIONS, CURRENCY_NAMES, CURRENCY_SYMBOLS } from '../types/gold';
 import type { SupportedCurrency, KaratValue, ThemeMode } from '../types/gold';
 import { Info } from '../components/Icons';
+import { getGoldMarketProvider } from '../providers';
+
+const SOURCE_LABELS: Record<string, string> = {
+  commodityprice: 'commoditypriceapi.com',
+  'goldprice.dev': 'goldprice.dev',
+  mock: 'Mock (demo)',
+};
 
 export function SettingsPage() {
   const { prefs, updatePref } = usePreferences();
+  const sourceName = SOURCE_LABELS[getGoldMarketProvider().name] ?? getGoldMarketProvider().name;
 
   const refreshOptions = [
     { value: 30000, label: '30 seconds' },
@@ -129,7 +137,7 @@ export function SettingsPage() {
         <h3 className="text-sm font-semibold text-slate-300 mb-3">About</h3>
         <div className="space-y-2 text-xs text-slate-500">
           <p>GoldPrice PWA v1.0.0</p>
-          <p>Data source: goldprice.dev</p>
+          <p>Data source: {sourceName}</p>
           <p>Architecture: React + Cloudflare Pages</p>
         </div>
       </div>

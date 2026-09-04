@@ -36,7 +36,8 @@ jobs:
         run: npm run build
         env:
           VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE }}
-          VITE_GOLD_API_KEY: ${{ secrets.VITE_GOLD_API_KEY }}
+          VITE_MARKET_PROVIDER: ${{ vars.VITE_MARKET_PROVIDER }}
+          VITE_GOLD_API_KEY: ${{ secrets.GOLD_API_KEY }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

@@ -139,6 +139,29 @@ describe('CommodityPriceApiProvider', () => {
     await expect(provider.getGoldQuote()).rejects.toThrow('No gold rate returned');
   });
 
+  it('should handle number-shaped gold rate response', async () => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          success: true,
+          timestamp,
+          rates: { XAU: 4430.58 },
+          metadata: { XAU: { unit: 'T.oz', quote: 'USD' } },
+        }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const quote = await provider.getGoldQuote();
+    expect(quote.pricePerOunce).toBe(4430.58);
+    expect(quote.bid).toBeNull();
+    expect(quote.ask).toBeNull();
+    expect(quote.currency).toBe('USD');
+    expect(quote.source).toBe('commoditypriceapi');
+    expect(quote.timestamp).toBe(new Date(timestamp * 1000).toISOString());
+  });
+
   it('should throw on API error', async () => {
     vi.stubGlobal(
       'fetch',

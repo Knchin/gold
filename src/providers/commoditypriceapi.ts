@@ -15,7 +15,7 @@ interface CommodityRateEntry {
 
 interface CommodityLatestResponse {
   timestamp?: number;
-  rates?: Record<string, CommodityRateEntry>;
+  rates?: Record<string, CommodityRateEntry | number>;
 }
 
 interface CommodityTimeSeriesResponse {
@@ -49,14 +49,22 @@ export class CommodityPriceApiProvider implements GoldMarketProvider {
       throw new Error(`commoditypriceapi API error: ${res.status} ${message ?? res.statusText}`);
     }
 
-    const gold = data?.rates?.[GOLD_SYMBOL];
-    if (!gold) {
+    const goldRaw = data?.rates?.[GOLD_SYMBOL];
+    if (goldRaw === undefined) {
       throw new Error('No gold rate returned from commoditypriceapi');
     }
 
-    const price = gold.rate != null ? Number(gold.rate) : NaN;
-    const bid = gold.bid != null && Number.isFinite(Number(gold.bid)) ? Number(gold.bid) : null;
-    const ask = gold.ask != null && Number.isFinite(Number(gold.ask)) ? Number(gold.ask) : null;
+    const entry: CommodityRateEntry | null =
+      typeof goldRaw === 'object' && goldRaw !== null ? goldRaw : null;
+
+    const price =
+      entry?.rate != null
+        ? Number(entry.rate)
+        : typeof goldRaw === 'number'
+          ? goldRaw
+          : NaN;
+    const bid = entry?.bid != null && Number.isFinite(Number(entry.bid)) ? Number(entry.bid) : null;
+    const ask = entry?.ask != null && Number.isFinite(Number(entry.ask)) ? Number(entry.ask) : null;
 
     if (!Number.isFinite(price) || price <= 0) {
       throw new Error('Invalid gold rate received from commoditypriceapi');

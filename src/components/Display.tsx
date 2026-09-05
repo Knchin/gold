@@ -66,6 +66,13 @@ export function StatusBadge({ status, isDemoMode }: StatusBadgeProps) {
       textClass: 'text-gray-300',
       borderClass: 'border-gray-500/30',
     },
+    'market-closed': {
+      label: 'MARKET CLOSED',
+      dotClass: 'bg-slate-400',
+      bgClass: 'bg-slate-500/20',
+      textClass: 'text-slate-300',
+      borderClass: 'border-slate-500/30',
+    },
   };
 
   const config = configs[status];

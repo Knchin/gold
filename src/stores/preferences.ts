@@ -9,6 +9,8 @@ const DEFAULT_PREFS: UserPreferences = {
   decimals: 2,
   weightUnit: 'gram',
   refreshIntervalMs: 60000,
+  marketHoursIntervalMs: 60000,
+  respectMarketHours: true,
 };
 
 export function loadPreferences(): UserPreferences {

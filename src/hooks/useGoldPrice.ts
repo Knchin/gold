@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getGoldMarketProvider } from '../providers';
 import { calculatePricePerGram, calculatePriceByKarat, isQuoteFresh } from '../calculations/gold';
-import type { GoldPriceData, DataStatus, SupportedCurrency, KaratValue } from '../types/gold';
 import { loadPreferences } from '../stores/preferences';
+import { isMarketOpen, msUntilNextOpen } from '../utils/marketHours';
+import type { GoldPriceData, DataStatus, SupportedCurrency, KaratValue } from '../types/gold';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -19,12 +20,39 @@ export function useGoldPrice(): UseGoldPriceReturn {
   const [status, setStatus] = useState<DataStatus>('updating');
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const wakeupRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
 
   const prefs = loadPreferences();
   const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+  const respectMarketHours = prefs.respectMarketHours !== false;
+
+  const clearWakeup = useCallback(() => {
+    if (wakeupRef.current !== null) {
+      window.clearTimeout(wakeupRef.current);
+      wakeupRef.current = null;
+    }
+  }, []);
+
+  const scheduleWakeup = useCallback(() => {
+    clearWakeup();
+    const delay = msUntilNextOpen();
+    wakeupRef.current = window.setTimeout(() => {
+      wakeupRef.current = null;
+      if (mountedRef.current) fetchData();
+    }, delay);
+  }, []);
 
   const fetchData = useCallback(async () => {
+    if (respectMarketHours && !isDemoMode && !isMarketOpen()) {
+      if (!mountedRef.current) return;
+      setStatus('market-closed');
+      scheduleWakeup();
+      return;
+    }
+
+    clearWakeup();
+
     try {
       setStatus((prev) => (prev === 'live' || prev === 'demo' ? 'updating' : prev));
       setError(null);
@@ -70,9 +98,10 @@ export function useGoldPrice(): UseGoldPriceReturn {
         return 'reconnecting';
       });
     }
-  }, [data]);
+  }, [data, respectMarketHours, isDemoMode]);
 
   const refresh = useCallback(async () => {
+    clearWakeup();
     await fetchData();
   }, [fetchData]);
 
@@ -80,13 +109,22 @@ export function useGoldPrice(): UseGoldPriceReturn {
     mountedRef.current = true;
     fetchData();
 
-    intervalRef.current = window.setInterval(fetchData, prefs.refreshIntervalMs);
+    const scheduleInterval = () => {
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
+      const intervalMs = respectMarketHours && !isDemoMode && isMarketOpen()
+        ? prefs.marketHoursIntervalMs ?? prefs.refreshIntervalMs
+        : prefs.refreshIntervalMs;
+      intervalRef.current = window.setInterval(fetchData, intervalMs);
+    };
+
+    scheduleInterval();
 
     return () => {
       mountedRef.current = false;
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
+      clearWakeup();
     };
-  }, [fetchData, prefs.refreshIntervalMs]);
+  }, [fetchData, prefs.refreshIntervalMs, prefs.marketHoursIntervalMs, respectMarketHours, isDemoMode]);
 
   return { data, status, error, isDemoMode, refresh };
 }

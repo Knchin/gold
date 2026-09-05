@@ -32,7 +32,7 @@ export const DEFAULT_CURRENCY: SupportedCurrency = 'EUR';
 export const KARAT_OPTIONS = [24, 22, 21, 18, 14, 10, 9] as const;
 export type KaratValue = (typeof KARAT_OPTIONS)[number];
 
-export type DataStatus = 'live' | 'delayed' | 'stale' | 'updating' | 'reconnecting' | 'demo' | 'offline';
+export type DataStatus = 'live' | 'delayed' | 'stale' | 'updating' | 'reconnecting' | 'demo' | 'offline' | 'market-closed';
 
 export interface GoldQuote {
   pricePerOunce: number;
@@ -109,4 +109,6 @@ export interface UserPreferences {
   decimals: 2 | 3 | 4;
   weightUnit: 'gram' | 'troy_oz' | 'ounce';
   refreshIntervalMs: number;
+  marketHoursIntervalMs: number;
+  respectMarketHours: boolean;
 }

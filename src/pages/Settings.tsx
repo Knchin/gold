@@ -3,6 +3,7 @@ import { SUPPORTED_CURRENCIES, KARAT_OPTIONS, CURRENCY_NAMES, CURRENCY_SYMBOLS }
 import type { SupportedCurrency, KaratValue, ThemeMode } from '../types/gold';
 import { Info } from '../components/Icons';
 import { getGoldMarketProvider } from '../providers';
+import { isMarketOpen, msUntilNextOpen } from '../utils/marketHours';
 
 const SOURCE_LABELS: Record<string, string> = {
   commodityprice: 'commoditypriceapi.com',
@@ -13,6 +14,8 @@ const SOURCE_LABELS: Record<string, string> = {
 export function SettingsPage() {
   const { prefs, updatePref } = usePreferences();
   const sourceName = SOURCE_LABELS[getGoldMarketProvider().name] ?? getGoldMarketProvider().name;
+  const marketOpen = isMarketOpen();
+  const nextOpenMs = marketOpen ? 0 : msUntilNextOpen();
 
   const refreshOptions = [
     { value: 30000, label: '30 seconds' },
@@ -20,6 +23,14 @@ export function SettingsPage() {
     { value: 120000, label: '2 minutes' },
     { value: 300000, label: '5 minutes' },
   ];
+
+  const formatCountdown = (ms: number): string => {
+    if (ms <= 0) return 'Opening now';
+    const hours = Math.floor(ms / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    if (hours > 0) return `${hours}h ${minutes}m until open`;
+    return `${minutes}m until open`;
+  };
 
   return (
     <div className="space-y-4">
@@ -111,9 +122,52 @@ export function SettingsPage() {
           </div>
         </div>
 
+        {/* Market Hours */}
+        <div className="mb-5">
+          <label className="block text-sm text-slate-400 mb-2">Market Hours</label>
+          <div className="space-y-3">
+            <button
+              onClick={() => updatePref('respectMarketHours', !prefs.respectMarketHours)}
+              className={`w-full py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex items-center justify-between ${
+                prefs.respectMarketHours
+                  ? 'bg-gold-500 text-white shadow-lg shadow-gold-500/25'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+              }`}
+            >
+              <span>Respect NYSE Hours (9:30–16:00 ET)</span>
+              <span>{prefs.respectMarketHours ? 'ON' : 'OFF'}</span>
+            </button>
+            {prefs.respectMarketHours && (
+              <div className="space-y-2">
+                <p className="text-xs text-slate-500">
+                  {marketOpen
+                    ? 'Market is OPEN'
+                    : `Market CLOSED — ${formatCountdown(nextOpenMs)}`}
+                </p>
+                <label className="block text-sm text-slate-400 mb-1">Market Hours Interval</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {refreshOptions.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => updatePref('marketHoursIntervalMs', value)}
+                      className={`py-2.5 rounded-xl text-sm font-medium transition-all ${
+                        prefs.marketHoursIntervalMs === value
+                          ? 'bg-gold-500 text-white shadow-lg shadow-gold-500/25'
+                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Refresh Interval */}
         <div className="mb-5">
-          <label className="block text-sm text-slate-400 mb-2">Refresh Interval</label>
+          <label className="block text-sm text-slate-400 mb-2">Refresh Interval (Off Hours)</label>
           <div className="grid grid-cols-2 gap-2">
             {refreshOptions.map(({ value, label }) => (
               <button

@@ -69,7 +69,7 @@ function App() {
           />
         )}
 
-        {activePage === 'home' && !data && status !== 'market-closed' && (
+        {activePage === 'home' && !data && (
           <div className="space-y-4">
             {status === 'updating' ? (
               <div className="card">
@@ -84,27 +84,6 @@ function App() {
               </div>
             )}
           </div>
-        )}
-
-        {activePage === 'home' && status === 'market-closed' && (
-          <Dashboard
-            data={{ 
-              quote: { pricePerOunce: 0, currency: 'USD', bid: null, ask: null, timestamp: new Date().toISOString(), source: 'commoditypriceapi', isStale: true },
-              fxRates: { EURUSD: 0, GBPUSD: 0, USDCHF: 0, timestamp: new Date().toISOString() },
-              pricePerGram: { usdPerGram: 0, eurPerGram: 0, gbpPerGram: 0, chfPerGram: 0 },
-              pricesByKarat: [],
-              dailyChange: null,
-              dailyChangePercent: null,
-              status: 'market-closed',
-              lastUpdated: new Date().toISOString(),
-            }}
-            status="market-closed"
-            isDemoMode={isDemoMode}
-            onRefresh={refresh}
-            currency={prefs.currency}
-            defaultKarat={prefs.defaultKarat}
-            decimals={prefs.decimals}
-          />
         )}
 
         {activePage === 'calculator' && data && (

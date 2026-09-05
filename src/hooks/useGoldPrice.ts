@@ -3,9 +3,46 @@ import { getGoldMarketProvider } from '../providers';
 import { calculatePricePerGram, calculatePriceByKarat, isQuoteFresh } from '../calculations/gold';
 import { loadPreferences } from '../stores/preferences';
 import { isMarketOpen, msUntilNextOpen } from '../utils/marketHours';
+import { supabase } from '../utils/supabase';
 import type { GoldPriceData, DataStatus, SupportedCurrency, KaratValue } from '../types/gold';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+const CACHE_MAX_AGE_MS = 60000;
+
+interface CachedData {
+  quote: any;
+  fxRates: any;
+  timestamp: number;
+}
+
+async function getCachedData(): Promise<CachedData | null> {
+  if (!supabase) return null;
+  const [{ data: goldCache }, { data: fxCache }] = await Promise.all([
+    supabase.from('gold_price_cache').select('*').eq('id', 1).single(),
+    supabase.from('fx_rates_cache').select('*').eq('id', 1).single(),
+  ]);
+  if (!goldCache || !fxCache) return null;
+  const age = Date.now() - new Date(goldCache.updated_at).getTime();
+  if (age > CACHE_MAX_AGE_MS) return null;
+  return {
+    quote: {
+      pricePerOunce: goldCache.price_per_ounce,
+      currency: 'USD',
+      bid: goldCache.bid,
+      ask: goldCache.ask,
+      timestamp: goldCache.timestamp_utc,
+      source: goldCache.source,
+      isStale: goldCache.is_stale,
+    },
+    fxRates: {
+      EURUSD: fxCache.eur_usd,
+      GBPUSD: fxCache.gbp_usd,
+      USDCHF: fxCache.usd_chf,
+      timestamp: fxCache.timestamp_utc,
+    },
+    timestamp: new Date(goldCache.updated_at).getTime(),
+  };
+}
 
 interface UseGoldPriceReturn {
   data: GoldPriceData | null;
@@ -44,11 +81,29 @@ export function useGoldPrice(): UseGoldPriceReturn {
   }, []);
 
   const fetchData = useCallback(async () => {
-    if (respectMarketHours && !isDemoMode && !isMarketOpen()) {
+    const marketOpen = respectMarketHours && !isDemoMode && isMarketOpen();
+
+    if (!marketOpen) {
       if (!mountedRef.current) return;
       setStatus('market-closed');
       scheduleWakeup();
-      return;
+
+      const cached = await getCachedData();
+      if (cached) {
+        const pricePerGram = calculatePricePerGram(cached.quote, cached.fxRates);
+        const pricesByKarat = calculatePriceByKarat(pricePerGram);
+        setData({
+          quote: cached.quote,
+          fxRates: cached.fxRates,
+          pricePerGram,
+          pricesByKarat,
+          dailyChange: null,
+          dailyChangePercent: null,
+          status: 'market-closed',
+          lastUpdated: new Date().toISOString(),
+        });
+        return;
+      }
     }
 
     clearWakeup();
@@ -72,11 +127,13 @@ export function useGoldPrice(): UseGoldPriceReturn {
       const isDemo = provider.name === 'mock';
       const nextStatus: DataStatus = isDemo
         ? 'demo'
-        : fresh
-          ? quote.isStale
-            ? 'delayed'
-            : 'live'
-          : 'stale';
+        : marketOpen
+          ? fresh
+            ? quote.isStale
+              ? 'delayed'
+              : 'live'
+            : 'stale'
+          : 'market-closed';
 
       setData({
         quote,
@@ -111,7 +168,8 @@ export function useGoldPrice(): UseGoldPriceReturn {
 
     const scheduleInterval = () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
-      const intervalMs = respectMarketHours && !isDemoMode && isMarketOpen()
+      const marketOpen = respectMarketHours && !isDemoMode && isMarketOpen();
+      const intervalMs = marketOpen
         ? prefs.marketHoursIntervalMs ?? prefs.refreshIntervalMs
         : prefs.refreshIntervalMs;
       intervalRef.current = window.setInterval(fetchData, intervalMs);

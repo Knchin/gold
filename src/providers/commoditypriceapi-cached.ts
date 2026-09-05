@@ -34,6 +34,7 @@ export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
 
   private async setCachedGold(quote: GoldQuote): Promise<void> {
     if (!supabase) return;
+    // Upsert the latest cache
     await supabase.from('gold_price_cache').upsert({
       id: 1,
       price_per_ounce: quote.pricePerOunce,
@@ -43,6 +44,14 @@ export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
       source: quote.source,
       is_stale: quote.isStale,
       updated_at: new Date().toISOString(),
+    });
+    // Append to history for chart
+    await supabase.from('gold_price_history').insert({
+      price_per_ounce: quote.pricePerOunce,
+      bid: quote.bid,
+      ask: quote.ask,
+      timestamp_utc: quote.timestamp,
+      source: quote.source,
     });
   }
 
@@ -117,7 +126,61 @@ export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
   }
 
   async getHistoricalGoldData(from: string, to: string): Promise<HistoricalBar[]> {
-    return this.baseProvider.getHistoricalGoldData(from, to);
+    if (!supabase) {
+      // Fallback to API if no Supabase
+      return this.baseProvider.getHistoricalGoldData(from, to);
+    }
+
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+
+    const { data, error } = await supabase
+      .from('gold_price_history')
+      .select('price_per_ounce, bid, ask, timestamp_utc')
+      .gte('timestamp_utc', fromDate.toISOString())
+      .lte('timestamp_utc', toDate.toISOString())
+      .order('timestamp_utc', { ascending: true });
+
+    if (error) {
+      console.error('History query failed:', error);
+      return this.baseProvider.getHistoricalGoldData(from, to);
+    }
+
+    if (!data || data.length === 0) {
+      // No history yet, fall back to API
+      return this.baseProvider.getHistoricalGoldData(from, to);
+    }
+
+    // Group by day and compute OHLC
+    const dailyMap = new Map<string, { open: number; high: number; low: number; close: number; count: number }>();
+    
+    for (const row of data) {
+      const dateKey = new Date(row.timestamp_utc).toISOString().split('T')[0];
+      const price = row.price_per_ounce;
+      
+      if (!dailyMap.has(dateKey)) {
+        dailyMap.set(dateKey, { open: price, high: price, low: price, close: price, count: 1 });
+      } else {
+        const day = dailyMap.get(dateKey)!;
+        day.high = Math.max(day.high, price);
+        day.low = Math.min(day.low, price);
+        day.close = price;
+        day.count++;
+      }
+    }
+
+    // Convert to HistoricalBar array
+    return Array.from(dailyMap.entries())
+      .map(([date, day]) => ({
+        date,
+        open: day.open,
+        high: day.high,
+        low: day.low,
+        close: day.close,
+        volume: day.count,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   async getQuotaInfo(): Promise<{ used: number; remaining: number; trialEndsAt: string | null } | null> {

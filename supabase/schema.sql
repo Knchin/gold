@@ -32,20 +32,51 @@ CREATE TABLE IF NOT EXISTS quota_tracker (
   updated_at timestamptz DEFAULT now()
 );
 
+-- Historical gold prices (append-only, one row per fetch)
+CREATE TABLE IF NOT EXISTS gold_price_history (
+  id bigserial PRIMARY KEY,
+  price_per_ounce numeric NOT NULL,
+  bid numeric,
+  ask numeric,
+  timestamp_utc timestamptz NOT NULL,
+  source text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+-- FX rates history (append-only)
+CREATE TABLE IF NOT EXISTS fx_rates_history (
+  id bigserial PRIMARY KEY,
+  eur_usd numeric NOT NULL,
+  gbp_usd numeric NOT NULL,
+  usd_chf numeric NOT NULL,
+  timestamp_utc timestamptz NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Create indexes for time-range queries
+CREATE INDEX IF NOT EXISTS idx_gold_price_history_timestamp ON gold_price_history (timestamp_utc DESC);
+CREATE INDEX IF NOT EXISTS idx_fx_rates_history_timestamp ON fx_rates_history (timestamp_utc DESC);
+
 -- Enable RLS
 ALTER TABLE gold_price_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fx_rates_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quota_tracker ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gold_price_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fx_rates_history ENABLE ROW LEVEL SECURITY;
 
 -- Public read access (anon key can read cache)
 CREATE POLICY "Public read gold cache" ON gold_price_cache FOR SELECT USING (true);
 CREATE POLICY "Public read fx cache" ON fx_rates_cache FOR SELECT USING (true);
 CREATE POLICY "Public read quota" ON quota_tracker FOR SELECT USING (true);
+CREATE POLICY "Public read gold history" ON gold_price_history FOR SELECT USING (true);
+CREATE POLICY "Public read fx history" ON fx_rates_history FOR SELECT USING (true);
 
 -- Service role write access (edge function uses service role)
 CREATE POLICY "Service role write gold cache" ON gold_price_cache FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "Service role write fx cache" ON fx_rates_cache FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "Service role write quota" ON quota_tracker FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role write gold history" ON gold_price_history FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role write fx history" ON fx_rates_history FOR ALL USING (auth.role() = 'service_role');
 
 -- RPC function for atomic quota increment
 CREATE OR REPLACE FUNCTION increment_quota()

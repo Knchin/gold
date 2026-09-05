@@ -80,7 +80,7 @@ export function useGoldPrice(): UseGoldPriceReturn {
     }, delay);
   }, []);
 
-  const fetchData = useCallback(async () => {
+const fetchData = useCallback(async () => {
     const marketOpen = respectMarketHours && !isDemoMode && isMarketOpen();
 
     if (!marketOpen) {
@@ -102,8 +102,9 @@ export function useGoldPrice(): UseGoldPriceReturn {
           status: 'market-closed',
           lastUpdated: new Date().toISOString(),
         });
-        return;
       }
+      // No fresh cache when market closed - don't call API, just show what we have (or nothing)
+      return;
     }
 
     clearWakeup();
@@ -169,10 +170,10 @@ export function useGoldPrice(): UseGoldPriceReturn {
     const scheduleInterval = () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
       const marketOpen = respectMarketHours && !isDemoMode && isMarketOpen();
-      const intervalMs = marketOpen
-        ? prefs.marketHoursIntervalMs ?? prefs.refreshIntervalMs
-        : prefs.refreshIntervalMs;
-      intervalRef.current = window.setInterval(fetchData, intervalMs);
+      if (marketOpen) {
+        const intervalMs = prefs.marketHoursIntervalMs ?? prefs.refreshIntervalMs;
+        intervalRef.current = window.setInterval(fetchData, intervalMs);
+      }
     };
 
     scheduleInterval();

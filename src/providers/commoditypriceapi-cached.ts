@@ -6,7 +6,6 @@ import { CommodityPriceApiProvider } from './commoditypriceapi';
 export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
   name = 'commodityprice-cached';
   private baseProvider: CommodityPriceApiProvider;
-  private quotaWarned = false;
 
   constructor(apiKey?: string) {
     this.baseProvider = new CommodityPriceApiProvider(apiKey);

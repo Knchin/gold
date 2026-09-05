@@ -39,4 +39,4 @@ export interface QuotaTracker {
   updated_at: string;
 }
 
-export const CACHE_MAX_AGE_MS = 60000;
+export const CACHE_MAX_AGE_MS = 300000; // 5 minutes

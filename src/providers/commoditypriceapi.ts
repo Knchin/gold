@@ -23,7 +23,7 @@ interface CommodityTimeSeriesResponse {
   rates?: Record<string, { open?: number; high?: number; low?: number; close?: number }>;
 }
 
-function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {

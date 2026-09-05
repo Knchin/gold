@@ -338,3 +338,4 @@ Actual jewelry buying and selling prices will differ significantly.
 ## License
 
 MIT
+

@@ -38,6 +38,8 @@ jobs:
           VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE }}
           VITE_MARKET_PROVIDER: ${{ vars.VITE_MARKET_PROVIDER }}
           VITE_GOLD_API_KEY: ${{ secrets.GOLD_API_KEY }}
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

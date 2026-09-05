@@ -7,7 +7,7 @@ import { supabase } from '../utils/supabase';
 import type { GoldPriceData, DataStatus, SupportedCurrency, KaratValue } from '../types/gold';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
-const CACHE_MAX_AGE_MS = 60000;
+const CACHE_MAX_AGE_MS = 300000; // 5 minutes - matches provider
 
 interface CachedData {
   quote: any;

@@ -6,6 +6,7 @@ const FX_URL = 'https://open.er-api.com/v6/latest/USD';
 const GOLD_SYMBOL = 'XAU';
 const FX_CACHE_MS = 6 * 60 * 60 * 1000;
 const QUOTE_STALE_MS = 5 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 10000;
 
 interface CommodityRateEntry {
   rate?: number;
@@ -20,6 +21,16 @@ interface CommodityLatestResponse {
 
 interface CommodityTimeSeriesResponse {
   rates?: Record<string, { open?: number; high?: number; low?: number; close?: number }>;
+}
+
+function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export class CommodityPriceApiProvider implements GoldMarketProvider {
@@ -41,7 +52,7 @@ export class CommodityPriceApiProvider implements GoldMarketProvider {
 
   async getGoldQuote(): Promise<GoldQuote> {
     const query = this.authQuery(new URLSearchParams({ symbols: GOLD_SYMBOL }));
-    const res = await fetch(`${BASE_URL}/rates/latest?${query.toString()}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/rates/latest?${query.toString()}`);
     const data: CommodityLatestResponse | null = await res.json().catch(() => null);
 
     if (!res.ok) {
@@ -92,7 +103,7 @@ export class CommodityPriceApiProvider implements GoldMarketProvider {
       return this.cachedFx;
     }
 
-    const res = await fetch(FX_URL);
+    const res = await fetchWithTimeout(FX_URL);
     const data: { rates?: Record<string, number>; base_code?: string } | null = await res.json().catch(() => null);
 
     if (!res.ok || !data?.rates) {
@@ -122,7 +133,7 @@ export class CommodityPriceApiProvider implements GoldMarketProvider {
     const query = this.authQuery(
       new URLSearchParams({ symbols: GOLD_SYMBOL, startDate: from, endDate: to })
     );
-    const res = await fetch(`${BASE_URL}/rates/time-series?${query.toString()}`);
+    const res = await fetchWithTimeout(`${BASE_URL}/rates/time-series?${query.toString()}`);
     const data: CommodityTimeSeriesResponse | null = await res.json().catch(() => null);
 
     if (!res.ok) {

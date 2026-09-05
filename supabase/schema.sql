@@ -65,17 +65,35 @@ ALTER TABLE gold_price_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fx_rates_history ENABLE ROW LEVEL SECURITY;
 
 -- Public read access (anon key can read cache)
+DROP POLICY IF EXISTS "Public read gold cache" ON gold_price_cache;
 CREATE POLICY "Public read gold cache" ON gold_price_cache FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public read fx cache" ON fx_rates_cache;
 CREATE POLICY "Public read fx cache" ON fx_rates_cache FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public read quota" ON quota_tracker;
 CREATE POLICY "Public read quota" ON quota_tracker FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public read gold history" ON gold_price_history;
 CREATE POLICY "Public read gold history" ON gold_price_history FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public read fx history" ON fx_rates_history;
 CREATE POLICY "Public read fx history" ON fx_rates_history FOR SELECT USING (true);
 
 -- Service role write access (edge function uses service role)
+DROP POLICY IF EXISTS "Service role write gold cache" ON gold_price_cache;
 CREATE POLICY "Service role write gold cache" ON gold_price_cache FOR ALL USING (auth.role() = 'service_role');
+
+DROP POLICY IF EXISTS "Service role write fx cache" ON fx_rates_cache;
 CREATE POLICY "Service role write fx cache" ON fx_rates_cache FOR ALL USING (auth.role() = 'service_role');
+
+DROP POLICY IF EXISTS "Service role write quota" ON quota_tracker;
 CREATE POLICY "Service role write quota" ON quota_tracker FOR ALL USING (auth.role() = 'service_role');
+
+DROP POLICY IF EXISTS "Service role write gold history" ON gold_price_history;
 CREATE POLICY "Service role write gold history" ON gold_price_history FOR ALL USING (auth.role() = 'service_role');
+
+DROP POLICY IF EXISTS "Service role write fx history" ON fx_rates_history;
 CREATE POLICY "Service role write fx history" ON fx_rates_history FOR ALL USING (auth.role() = 'service_role');
 
 -- RPC function for atomic quota increment

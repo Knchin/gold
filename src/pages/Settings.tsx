@@ -4,16 +4,20 @@ import type { SupportedCurrency, KaratValue, ThemeMode } from '../types/gold';
 import { Info } from '../components/Icons';
 import { getGoldMarketProvider } from '../providers';
 import { isMarketOpen, msUntilNextOpen } from '../utils/marketHours';
+import { CachedCommodityPriceApiProvider } from '../providers/commoditypriceapi-cached';
+import { useState, useEffect } from 'react';
 
 const SOURCE_LABELS: Record<string, string> = {
   commodityprice: 'commoditypriceapi.com',
   'goldprice.dev': 'goldprice.dev',
   mock: 'Mock (demo)',
+  'commodityprice-cached': 'commoditypriceapi.com (cached)',
 };
 
 export function SettingsPage() {
   const { prefs, updatePref } = usePreferences();
-  const sourceName = SOURCE_LABELS[getGoldMarketProvider().name] ?? getGoldMarketProvider().name;
+  const provider = getGoldMarketProvider();
+  const sourceName = SOURCE_LABELS[provider.name] ?? provider.name;
   const marketOpen = isMarketOpen();
   const nextOpenMs = marketOpen ? 0 : msUntilNextOpen();
 
@@ -31,6 +35,17 @@ export function SettingsPage() {
     if (hours > 0) return `${hours}h ${minutes}m until open`;
     return `${minutes}m until open`;
   };
+
+  // Quota meter for cached provider
+  const [quotaInfo, setQuotaInfo] = useState<{ used: number; remaining: number; trialEndsAt: string | null } | null>(null);
+  useEffect(() => {
+    if (provider instanceof CachedCommodityPriceApiProvider) {
+      provider.getQuotaInfo().then(setQuotaInfo).catch(() => {});
+    }
+  }, [provider]);
+
+  const quotaPercent = quotaInfo ? (quotaInfo.used / 2000) * 100 : 0;
+  const quotaColor = quotaPercent > 90 ? 'bg-red-500' : quotaPercent > 70 ? 'bg-amber-500' : 'bg-emerald-500';
 
   return (
     <div className="space-y-4">
@@ -208,6 +223,32 @@ export function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Quota Meter */}
+      {quotaInfo && (
+        <div className="card bg-slate-900/50 border-amber-500/20">
+          <h3 className="text-sm font-semibold text-slate-300 mb-3">API Quota (Trial)</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Used</span>
+              <span className="text-white font-medium">{quotaInfo.used} / 2,000</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">Remaining</span>
+              <span className="text-white font-medium">{quotaInfo.remaining}</span>
+            </div>
+            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full ${quotaColor} transition-all duration-300`}
+                style={{ width: `${Math.min(quotaPercent, 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-500">
+              Resets when trial ends (Sep 12, 2026)
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,8 @@ import type { GoldMarketProvider } from './types';
 import { GoldPriceDevProvider } from './goldprice-dev';
 import { MockGoldMarketProvider } from './mock';
 import { CommodityPriceApiProvider } from './commoditypriceapi';
+import { CachedCommodityPriceApiProvider } from './commoditypriceapi-cached';
+import { supabase } from '../utils/supabase';
 
 let providerInstance: GoldMarketProvider | null = null;
 
@@ -14,8 +16,11 @@ export function getGoldMarketProvider(): GoldMarketProvider {
 
   if (isDemoMode || providerChoice === 'mock') {
     providerInstance = new MockGoldMarketProvider();
-  } else if (providerChoice === 'commodityprice') {
-    providerInstance = new CommodityPriceApiProvider(apiKey || undefined);
+  } else if (providerChoice === 'commodityprice' || (!providerChoice && supabase)) {
+    // Use cached provider if Supabase is configured, otherwise direct
+    providerInstance = supabase
+      ? new CachedCommodityPriceApiProvider(apiKey || undefined)
+      : new CommodityPriceApiProvider(apiKey || undefined);
   } else if (providerChoice === 'goldprice') {
     providerInstance = new GoldPriceDevProvider(apiKey || undefined);
   } else {

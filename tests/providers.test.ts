@@ -177,15 +177,22 @@ describe('CommodityPriceApiProvider', () => {
   });
 
   it('should return valid FX rates and cache them', async () => {
+    // er-api returns target per USD (base=USD): EUR=0.86, GBP=0.74, CHF=0.81
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ result: 'success', rates: { EUR: 1.16, GBP: 1.35, CHF: 0.81 } }),
+      json: () => Promise.resolve({
+        result: 'success',
+        base_code: 'USD',
+        rates: { EUR: 0.86, GBP: 0.74, CHF: 0.81 },
+      }),
     });
     vi.stubGlobal('fetch', mockFetch);
 
     const fx1 = await provider.getFxRates();
-    expect(fx1.EURUSD).toBe(1.16);
-    expect(fx1.GBPUSD).toBe(1.35);
+    // Inverted for EURUSD and GBPUSD
+    expect(fx1.EURUSD).toBeCloseTo(1 / 0.86, 4);
+    expect(fx1.GBPUSD).toBeCloseTo(1 / 0.74, 4);
+    // USDCHF direct
     expect(fx1.USDCHF).toBe(0.81);
 
     const fx2 = await provider.getFxRates();

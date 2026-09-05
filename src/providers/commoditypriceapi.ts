@@ -93,21 +93,27 @@ export class CommodityPriceApiProvider implements GoldMarketProvider {
     }
 
     const res = await fetch(FX_URL);
-    const data: { rates?: Record<string, number> } | null = await res.json().catch(() => null);
+    const data: { rates?: Record<string, number>; base_code?: string } | null = await res.json().catch(() => null);
 
     if (!res.ok || !data?.rates) {
       throw new Error(`Exchange rate API error: ${res.status}`);
     }
 
-    const EURUSD = Number(data.rates.EUR);
-    const GBPUSD = Number(data.rates.GBP);
-    const USDCHF = Number(data.rates.CHF);
+    const eurPerUsd = Number(data.rates.EUR);
+    const gbpPerUsd = Number(data.rates.GBP);
+    const usdPerChf = Number(data.rates.CHF);
 
-    if (![EURUSD, GBPUSD, USDCHF].every((rate) => Number.isFinite(rate) && rate > 0)) {
+    if (![eurPerUsd, gbpPerUsd, usdPerChf].every((rate) => Number.isFinite(rate) && rate > 0)) {
       throw new Error('Invalid FX rates received from exchange rate API');
     }
 
-    this.cachedFx = { EURUSD, GBPUSD, USDCHF, timestamp: new Date().toISOString() };
+    // API returns target per USD (base=USD). Need USD per target for EUR/GBP; CHF already correct.
+    this.cachedFx = {
+      EURUSD: 1 / eurPerUsd,
+      GBPUSD: 1 / gbpPerUsd,
+      USDCHF: usdPerChf,
+      timestamp: new Date().toISOString(),
+    };
     this.cachedFxAt = Date.now();
     return this.cachedFx;
   }

@@ -102,9 +102,9 @@ const fetchData = useCallback(async () => {
           status: 'market-closed',
           lastUpdated: new Date().toISOString(),
         });
+        return;
       }
-      // No fresh cache when market closed - don't call API, just show what we have (or nothing)
-      return;
+      // No fresh cache when market closed - fall through to fetch fresh data from API
     }
 
     clearWakeup();

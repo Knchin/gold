@@ -100,7 +100,8 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          supabase db push --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
+          PROJECT_REF=$(echo $SUPABASE_URL | sed -E 's|https://([^.]+)\.supabase\.co|\\1|')
+          supabase db push --project-ref $PROJECT_REF
 
       - name: Deploy Edge Functions
         env:

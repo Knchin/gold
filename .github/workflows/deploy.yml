@@ -104,7 +104,8 @@ jobs:
         run: |
           # URL-encode password for connection string
           ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${SUPABASE_DB_PASSWORD}', safe=''))")
-          DB_URL="postgresql://postgres:${ENCODED_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres"
+          # Use pooled connection (port 6543) which uses IPv4
+          DB_URL="postgresql://postgres:${ENCODED_PASSWORD}@aws-0-${SUPABASE_PROJECT_ID}.pooler.supabase.com:6543/postgres"
           supabase db push --db-url "$DB_URL"
 
       - name: Deploy Edge Functions

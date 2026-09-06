@@ -80,6 +80,17 @@ CREATE POLICY "Public read gold history" ON gold_price_history FOR SELECT USING 
 DROP POLICY IF EXISTS "Public read fx history" ON fx_rates_history;
 CREATE POLICY "Public read fx history" ON fx_rates_history FOR SELECT USING (true);
 
+-- Allow anon to write cache (public cache for public app)
+DROP POLICY IF EXISTS "Anon write gold cache" ON gold_price_cache;
+CREATE POLICY "Anon write gold cache" ON gold_price_cache FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anon update gold cache" ON gold_price_cache;
+CREATE POLICY "Anon update gold cache" ON gold_price_cache FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Anon write fx cache" ON fx_rates_cache;
+CREATE POLICY "Anon write fx cache" ON fx_rates_cache FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anon update fx cache" ON fx_rates_cache;
+CREATE POLICY "Anon update fx cache" ON fx_rates_cache FOR UPDATE USING (true);
+
 -- Service role write access (edge function uses service role)
 DROP POLICY IF EXISTS "Service role write gold cache" ON gold_price_cache;
 CREATE POLICY "Service role write gold cache" ON gold_price_cache FOR ALL USING (auth.role() = 'service_role');

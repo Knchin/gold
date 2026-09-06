@@ -110,9 +110,6 @@ jobs:
           [api]
             port = 54321
           [functions]
-            port = 54321
-          [storage]
-            port = 54321
           EOF
           supabase link --project-ref ${SUPABASE_PROJECT_ID}
           supabase db push --linked

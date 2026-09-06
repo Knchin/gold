@@ -51,8 +51,10 @@ export function useHistoricalChart(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>('1M');
+  const [rawBars, setRawBars] = useState<HistoricalBar[]>([]);
 
-  const fetchData = useCallback(async () => {
+  // Fetch raw historical data (USD) - only when timeRange changes
+  const fetchRawData = useCallback(async () => {
     const provider = getGoldMarketProvider();
     if (!provider.getHistoricalGoldData) {
       setError('Historical data not available');
@@ -65,26 +67,37 @@ export function useHistoricalChart(
     try {
       const { from, to } = getDateRange(timeRange);
       const bars = await provider.getHistoricalGoldData(from, to);
+      // Store raw bars (USD prices) in state for reuse
+      setRawBars(bars);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load chart data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [timeRange]);
 
+  // Convert raw bars to chart data using current FX rates and currency
+  // This runs whenever raw bars or currency/FX rates change, but doesn't re-fetch
+  useEffect(() => {
+    if (rawBars && rawBars.length > 0) {
       const fallbackFx = fxRates || {
         EURUSD: 1.085,
         GBPUSD: 1.272,
         USDCHF: 0.878,
         timestamp: new Date().toISOString(),
       };
-
-      const chartData = interpolateHistoricalPrices(bars, currency, fallbackFx);
+      const chartData = interpolateHistoricalPrices(rawBars, currency, fallbackFx);
       setData(chartData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load chart data');
-    } finally {
-      setIsLoading(false);
     }
-  }, [timeRange, currency, fxRates]);
+  }, [rawBars, currency, fxRates]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchRawData();
+  }, [fetchRawData]);
+
+  const fetchData = useCallback(async () => {
+    await fetchRawData();
+  }, [fetchRawData]);
 
   return { data, isLoading, error, timeRange, setTimeRange };
 }

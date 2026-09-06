@@ -59,6 +59,7 @@ export function useGoldPrice(): UseGoldPriceReturn {
   const intervalRef = useRef<number | null>(null);
   const wakeupRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
+  const initialFetchDone = useRef(false);
 
   const prefs = loadPreferences();
   const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
@@ -80,7 +81,7 @@ export function useGoldPrice(): UseGoldPriceReturn {
     }, delay);
   }, []);
 
-const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     const marketOpen = respectMarketHours && !isDemoMode && isMarketOpen();
 
     if (!marketOpen) {
@@ -165,7 +166,12 @@ const fetchData = useCallback(async () => {
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchData();
+    
+    // Only fetch on initial mount, not on every fetchData change
+    if (!initialFetchDone.current) {
+      initialFetchDone.current = true;
+      fetchData();
+    }
 
     const scheduleInterval = () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
@@ -183,7 +189,7 @@ const fetchData = useCallback(async () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
       clearWakeup();
     };
-  }, [fetchData, prefs.refreshIntervalMs, prefs.marketHoursIntervalMs, respectMarketHours, isDemoMode]);
+  }, [prefs.refreshIntervalMs, prefs.marketHoursIntervalMs, respectMarketHours, isDemoMode]);
 
   return { data, status, error, isDemoMode, refresh };
 }

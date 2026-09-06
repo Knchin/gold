@@ -102,7 +102,9 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          DB_URL="postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres"
+          # URL-encode password for connection string
+          ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${SUPABASE_DB_PASSWORD}', safe=''))")
+          DB_URL="postgresql://postgres:${ENCODED_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres"
           supabase db push --db-url "$DB_URL"
 
       - name: Deploy Edge Functions

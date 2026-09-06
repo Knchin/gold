@@ -106,17 +106,17 @@ jobs:
       - name: Deploy Edge Functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
         run: |
-          supabase functions deploy commodity-price-proxy --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
+          supabase functions deploy commodity-price-proxy --project-ref ${{ vars.SUPABASE_PROJECT_ID }}
 
       - name: Set Edge Function Secrets
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_ID }}
           COMMODITY_API_KEY: ${{ secrets.GOLD_API_KEY }}
         run: |
-          supabase secrets set COMMODITY_API_KEY=$COMMODITY_API_KEY --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
+          supabase secrets set COMMODITY_API_KEY=$COMMODITY_API_KEY --project-ref ${{ vars.SUPABASE_PROJECT_ID }}
 
   deploy-cloudflare:
     name: Deploy Cloudflare Pages

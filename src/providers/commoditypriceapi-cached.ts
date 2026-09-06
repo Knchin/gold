@@ -16,11 +16,12 @@ export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
 
   private async getCachedGold(): Promise<GoldQuote | null> {
     if (!supabase) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('gold_price_cache')
       .select('*')
       .eq('id', 1)
       .single();
+    if (error) console.error('Get cached gold error:', error);
     if (!data) return null;
     const age = Date.now() - new Date(data.updated_at).getTime();
     if (age > CACHE_MAX_AGE_MS) return null;
@@ -37,7 +38,7 @@ export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
 
   private async setCachedGold(quote: GoldQuote): Promise<void> {
     if (!supabase) return;
-    await supabase.from('gold_price_cache').upsert({
+    const { error: cacheError } = await supabase.from('gold_price_cache').upsert({
       id: 1,
       price_per_ounce: quote.pricePerOunce,
       bid: quote.bid,
@@ -47,22 +48,31 @@ export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
       is_stale: quote.isStale,
       updated_at: new Date().toISOString(),
     });
-    await supabase.from('gold_price_history').insert({
+    if (cacheError) {
+      console.error('Cache gold upsert error:', cacheError);
+      throw cacheError;
+    }
+    const { error: historyError } = await supabase.from('gold_price_history').insert({
       price_per_ounce: quote.pricePerOunce,
       bid: quote.bid,
       ask: quote.ask,
       timestamp_utc: quote.timestamp,
       source: quote.source,
     });
+    if (historyError) {
+      console.error('Gold history insert error:', historyError);
+      throw historyError;
+    }
   }
 
   private async getCachedFx(): Promise<FxRates | null> {
     if (!supabase) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('fx_rates_cache')
       .select('*')
       .eq('id', 1)
       .single();
+    if (error) console.error('Get cached FX error:', error);
     if (!data) return null;
     const age = Date.now() - new Date(data.updated_at).getTime();
     if (age > CACHE_MAX_AGE_MS) return null;
@@ -76,7 +86,7 @@ export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
 
   private async setCachedFx(fx: FxRates): Promise<void> {
     if (!supabase) return;
-    await supabase.from('fx_rates_cache').upsert({
+    const { error: cacheError } = await supabase.from('fx_rates_cache').upsert({
       id: 1,
       eur_usd: fx.EURUSD,
       gbp_usd: fx.GBPUSD,
@@ -84,12 +94,20 @@ export class CachedCommodityPriceApiProvider implements GoldMarketProvider {
       timestamp_utc: fx.timestamp,
       updated_at: new Date().toISOString(),
     });
-    await supabase.from('fx_rates_history').insert({
+    if (cacheError) {
+      console.error('Cache FX upsert error:', cacheError);
+      throw cacheError;
+    }
+    const { error: historyError } = await supabase.from('fx_rates_history').insert({
       eur_usd: fx.EURUSD,
       gbp_usd: fx.GBPUSD,
       usd_chf: fx.USDCHF,
       timestamp_utc: fx.timestamp,
     });
+    if (historyError) {
+      console.error('FX history insert error:', historyError);
+      throw historyError;
+    }
   }
 
   private async acquireLock(lockKey: number): Promise<boolean> {

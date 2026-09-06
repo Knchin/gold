@@ -9,8 +9,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build
+  typecheck:
+    name: TypeCheck
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,8 +28,42 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run tests
         run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build
         run: npm run build
@@ -49,8 +83,8 @@ jobs:
 
   deploy-preview:
     name: Deploy Preview
-    needs: build
     runs-on: ubuntu-latest
+    needs: [build, test]
     permissions:
       pull-requests: write
     steps:

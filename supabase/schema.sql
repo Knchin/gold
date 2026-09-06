@@ -91,6 +91,17 @@ CREATE POLICY "Anon write fx cache" ON fx_rates_cache FOR INSERT WITH CHECK (tru
 DROP POLICY IF EXISTS "Anon update fx cache" ON fx_rates_cache;
 CREATE POLICY "Anon update fx cache" ON fx_rates_cache FOR UPDATE USING (true);
 
+-- Allow anon to write history (for chart data)
+DROP POLICY IF EXISTS "Anon write gold history" ON gold_price_history;
+CREATE POLICY "Anon write gold history" ON gold_price_history FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anon update gold history" ON gold_price_history;
+CREATE POLICY "Anon update gold history" ON gold_price_history FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Anon write fx history" ON fx_rates_history;
+CREATE POLICY "Anon write fx history" ON fx_rates_history FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anon update fx history" ON fx_rates_history;
+CREATE POLICY "Anon update fx history" ON fx_rates_history FOR UPDATE USING (true);
+
 -- Service role write access (edge function uses service role)
 DROP POLICY IF EXISTS "Service role write gold cache" ON gold_price_cache;
 CREATE POLICY "Service role write gold cache" ON gold_price_cache FOR ALL USING (auth.role() = 'service_role');
